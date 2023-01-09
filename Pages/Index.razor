@@ -1,0 +1,377 @@
+﻿@page "/"
+
+
+@layout MainLayout
+
+
+<MudPaper Style="height:400px" Class="@Class">
+    <div style="height:25%">
+        <MudToolBar Dense="false" DisableGutters="false">
+            <MudText>DataSource Name</MudText>
+            <MudSpacer />
+            <MudText>Min: @XMin?.ToString("g")</MudText>
+            <MudSpacer />
+            <MudText>Max: @XMax?.ToString("G")</MudText>
+            <MudSpacer />
+            <div>
+                <MudDatePicker Class="mx-2" Label="Select a Date" />
+            </div>
+            <div style="width:15%">
+                <MudSelect FullWidth="true" T="int?" Label="Display Time">
+                    <MudSelectItem T="int?" Value="1">
+                        1 Hour
+                    </MudSelectItem>
+                    <MudSelectItem T="int?" Value="2">
+                        2 Hour
+                    </MudSelectItem>
+                    <MudSelectItem T="int?" Value="4">
+                        4 Hour
+                    </MudSelectItem>
+                    <MudSelectItem T="int?" Value="8">
+                        8 Hour
+                    </MudSelectItem>
+                    <MudSelectItem T="int?" Value="12">
+                        12 Hour
+                    </MudSelectItem>
+                    <MudSelectItem T="int?" Value="24">
+                        24 Hour
+                    </MudSelectItem>
+                </MudSelect>
+            </div>
+        </MudToolBar>
+        <div class="d-flex justify-end">
+            <div style="width:99%">
+                <MudTabs @ref="ActiveTab">
+                    <MudTabPanel Text="Status" Icon="@Icons.Material.Filled.MonitorHeart" />
+                    <MudTabPanel Text="Jobs" Icon="@Icons.Material.Filled.Build" />
+                    <MudTabPanel Text="Operators" Icon="@Icons.Material.Filled.Groups" />
+                    <MudTabPanel Text="Scrap" Icon="@Icons.Material.Filled.Layers" />
+                    <MudTabPanel Text="Notes" Icon="@Icons.Material.Filled.Note" />
+                    <MudTabPanel Text="Zoom" Icon="@Icons.Material.Filled.ZoomIn" />
+                </MudTabs>
+            </div>
+        </div>
+    </div>
+
+    <div style="height:75%">
+        <div style="height:50%">
+            <ApexChart @ref=_chart TItem="NarrationTimeRange"
+                       Options=_options
+                       Height="@("100%")"
+                       XAxisType="XAxisType.Datetime"
+                       OnSelection="Selected">
+                <ApexPointTooltip>
+                    <div class="pa-2">
+                        @{
+                            var point = (ListPoint<NarrationTimeRange>)context.DataPoint;
+                            <MudText Typo="Typo.h6">@point.X</MudText>
+                            <MudText class="me-1">Start Date:@point.Items.First().TimeStart.ToString("D")</MudText>
+                            <MudText class="me-1">End Date:@point.Items.First().TimeEnd.ToString("D") </MudText>
+                            <MudText class="me-1">Start Time:@point.Items.First().TimeStart.ToString("T")</MudText>
+                            if (point.Items.First().TimeEnd < DateTime.UtcNow.AddMinutes(-1))
+                            {
+                                <MudText class="me-1">End Time:@point.Items.First().TimeEnd.ToString("T")</MudText>
+                            }
+                            else
+                            {
+                                <MudText class="me-1">End Time:<MudText class="text-bg-danger">Active</MudText></MudText>
+                            }
+                        }
+                    </div>
+                </ApexPointTooltip>
+                <ChildContent>
+                    <ApexRangeSeries TItem="NarrationTimeRange"
+                                     Items="Jobs"
+                                     XValue="@(e => e.Name)"
+                                     YMinValue="@(e =>e.TimeStart.ToUnixTimeMilliseconds())"
+                                     YMaxValue="@(e =>e.TimeEnd.ToUnixTimeMilliseconds())"
+                                     PointColor="@(e =>e.PointColor)"
+                                     />
+                </ChildContent>
+            </ApexChart>
+        </div>
+        <div style="height:50%">
+            <ApexChart @ref=_chart2 TItem="NarrationTimeRange"
+                       Options=_options2
+                       Height="@("100%")"
+                       XAxisType="XAxisType.Datetime">
+                <ApexPointTooltip>
+                    <div class="pa-2">
+                        @{
+                            var point = (ListPoint<NarrationTimeRange>)context.DataPoint;
+                            <MudText Typo="Typo.h6">@point.X</MudText>
+                            <MudText class="me-1">Start Date:@point.Items.First().TimeStart.ToString("D")</MudText>
+                            <MudText class="me-1">End Date:@point.Items.First().TimeEnd.ToString("D") </MudText>
+                            <MudText class="me-1">Start Time:@point.Items.First().TimeStart.ToString("T")</MudText>
+                            if (point.Items.First().TimeEnd < DateTime.UtcNow.AddMinutes(-1))
+                            {
+                                <MudText class="me-1">End Time:@point.Items.First().TimeEnd.ToString("T")</MudText>
+                            }
+                            else
+                            {
+                                <MudText class="me-1">End Time:<MudText class="text-bg-danger">Active</MudText></MudText>
+                            }
+                        }
+                    </div>
+                </ApexPointTooltip>
+                <ChildContent>
+                    <ApexRangeSeries TItem="NarrationTimeRange"
+                                     Items="Jobs2"
+                                     XValue="@(e => e.Name)"
+                                     YMinValue="@(e =>e.TimeStart.ToUnixTimeMilliseconds())"
+                                     YMaxValue="@(e =>e.TimeEnd.ToUnixTimeMilliseconds())"
+                                     PointColor="@(e =>e.PointColor)" />
+                </ChildContent>
+            </ApexChart>
+        </div>
+    </div>
+</MudPaper>
+
+<h3 class="mt-2">Selection</h3>
+    <Row>XAxis Min: @XMin?.ToString("G") XAxis Min: @XMax?.ToString("G")</Row>
+@code
+{
+    [Parameter]
+    public string? Class { get; set; }
+    public bool SnapTo { get; set; }
+    public MudTabs? ActiveTab { get; set; }
+    static DateTime date;
+    private ApexChart<NarrationTimeRange>? _chart;
+    private ApexChart<NarrationTimeRange>? _chart2;
+    private List<NarrationTimeRange> Jobs { get; set; } = new();
+    private List<NarrationTimeRange> Jobs1 { get; set; } = new();
+    private List<NarrationTimeRange> Jobs2 { get; set; } = new();
+    private ApexChartOptions<NarrationTimeRange>? _options;
+    private ApexChartOptions<NarrationTimeRange>? _options2;
+    private DateTimeOffset? XMin;
+    private DateTimeOffset? XMax;
+    private SelectionData<NarrationTimeRange>? currentSelection;
+
+    protected override void OnInitialized()
+    {
+        _options = new ApexChartOptions<NarrationTimeRange>
+            {      
+                PlotOptions = new PlotOptions
+                {
+                    Bar = new PlotOptionsBar
+                    {
+                        Horizontal = true
+                    }
+                },
+                Theme = new()
+                {
+                    Mode = Mode.Light
+                },
+                Xaxis = new()
+                {
+                    Labels = new()
+                    {
+                        Show = true
+                    }
+                },
+                Chart = new()
+                {
+                    Toolbar = new Toolbar
+                    {
+                        Tools = new()
+                        {
+                            Zoom = true,
+                            Selection = true,
+                            Pan = true,
+                            Reset = true,
+                            Zoomin = true,
+                            Zoomout = true,
+                            Download = true
+                        },
+                        Show = true
+                    },          
+                    Selection= new()
+                    {
+                        Enabled = true,       
+                    }
+                },
+                Yaxis = new List<YAxis>
+                {
+                    new()
+                    {
+                        Min = DateTime.UtcNow.AddHours(-4).AddDays(-1).ToUnixTimeMilliseconds(),
+                        Max = DateTime.UtcNow.AddHours(-4).AddMinutes(5).ToUnixTimeMilliseconds()
+                    }
+                },
+            };
+        _options2 = new ApexChartOptions<NarrationTimeRange>
+            {
+                PlotOptions = new PlotOptions
+                {
+                    Bar = new PlotOptionsBar
+                    {
+                        Horizontal = true
+                    }
+                },
+                Theme = new()
+                {
+                    Mode = Mode.Light
+                },
+                Xaxis = new()
+                {
+                    Labels = new()
+                    {
+                        Show = true
+                    }
+                },
+                Chart = new()
+                {
+                    Toolbar = new()
+                    {
+                        Tools = new()
+                        {
+                            Zoom = false,
+                            Selection = false
+                        },
+                        Show = false
+                    },
+                    Brush = new()
+                    {
+                        Enabled = false
+                    },
+
+                    
+                },
+                Yaxis = new List<YAxis>
+                {
+                    new()
+                    {
+                        Min = DateTime.UtcNow.AddHours(-4).AddDays(-1).ToUnixTimeMilliseconds(),
+                        Max = DateTime.UtcNow.AddHours(-4).AddMinutes(5).ToUnixTimeMilliseconds()
+                    }
+                },
+            };
+
+        var Job = new Faker<NarrationTimeRange>()
+        .RuleFor(prop => prop.Name, faker => "Jobs")
+        .RuleFor(prop => prop.Value, faker => faker.Random.Number())
+        .RuleFor(prop => prop.PointColor, faker => "#B2EBF2")
+        .RuleFor(prop => prop.TimeStart, faker => faker.Date.Between(DateTime.UtcNow.AddHours(-4).AddDays(-1), DateTime.UtcNow.AddHours(-4).AddMinutes(5)));
+        var StatusCode = new Faker<NarrationTimeRange>()
+        .RuleFor(prop => prop.Name, faker => "Status Code")
+        .RuleFor(prop => prop.Value, faker => faker.Random.Number())
+        .RuleFor(prop => prop.PointColor, faker => "#FF1744")
+        .RuleFor(prop => prop.TimeStart, faker => faker.Date.Between(DateTime.UtcNow.AddHours(-4).AddDays(-1), DateTime.UtcNow.AddHours(-4).AddMinutes(5)));
+        var Operators = new Faker<NarrationTimeRange>()
+        .RuleFor(prop => prop.Name, faker => "Operators")
+        .RuleFor(prop => prop.Value, faker => faker.Random.Number())
+        .RuleFor(prop => prop.PointColor, faker => "#B3E5FC")
+        .RuleFor(prop => prop.TimeStart, faker => faker.Date.Between(DateTime.UtcNow.AddHours(-4).AddDays(-1), DateTime.UtcNow.AddHours(-4).AddMinutes(5)));
+        var Bluebars = new Faker<NarrationTimeRange>()
+        .RuleFor(prop => prop.Name, faker => "DataSource")
+        .RuleFor(prop => prop.Value, faker => faker.Random.Number())
+        .RuleFor(prop => prop.PointColor, faker => "#2082ce")
+        .RuleFor(prop => prop.TimeStart, faker => faker.Date.Between(DateTime.UtcNow.AddHours(-4).AddDays(-1), DateTime.UtcNow.AddHours(-4).AddMinutes(5)));
+        Jobs1.AddRange(Bluebars.Generate(20));
+        Jobs2.AddRange(StatusCode.Generate(5));
+        Jobs2.AddRange(Job.Generate(3));
+        Jobs2.AddRange(Operators.Generate(10));
+        int ee = 1;
+        foreach (var item in Jobs1)
+        {
+            if (ee != 1)
+            {
+                item.TimeStart = date.AddSeconds(new Random().Next(1, 3600));
+            }
+            if (ee == 1)
+            {
+                item.TimeStart = DateTime.UtcNow.AddHours(-4).AddDays(-1).AddSeconds(new Random().Next(1, 500));
+            }
+            item.TimeEnd = item.TimeStart.AddSeconds(new Random().Next(1, 1800));
+            date = item.TimeEnd;
+            ee++;
+        }
+        ee = 1;
+        foreach (var item in Jobs2)
+        {
+            if (ee != 1)
+            {
+                item.TimeStart = date.AddSeconds(new Random().Next(1, 500));
+            }
+            if (ee == 1)
+            {
+                item.TimeStart = DateTime.UtcNow.AddHours(-4).AddDays(-1).AddSeconds(new Random().Next(1, 500));
+            }
+            item.TimeEnd = item.TimeStart.AddMinutes(new Random().Next(1, 30));
+            date = item.TimeEnd;
+            ee++;
+        }
+        NarrationTimeRange item2;
+        var count = 0;
+        for (int i = 0; i < Jobs1.Count; i++)
+        {
+            item2 = new();
+            item2.TimeStart = Jobs1[i].TimeEnd;
+            if (count < Jobs1.Count - 1)
+            {
+                item2.TimeEnd = Jobs1[i + 1].TimeStart;
+                item2.PointColor = "#ce312000";
+                item2.Name = "DataSource";
+                Jobs.Add(item2);
+            }
+            count++;
+            Jobs.Add(Jobs1[i]);
+        }
+    }
+    private async void Selection(SelectionData<NarrationTimeRange> selection)
+    {
+        currentSelection = selection;
+        var min = selection.XAxis.Min;
+        XMin = DateTimeOffset.FromUnixTimeMilliseconds((long)min!);
+        var max = selection.XAxis.Max;
+        XMax = DateTimeOffset.FromUnixTimeMilliseconds((long)max!);
+        var item1 = Jobs.First(a => a.TimeEnd > XMin);
+        var item2 = Jobs.First(a => a.TimeEnd > XMax);
+        XMin = item1.TimeStart;
+        XMax = item2.TimeEnd;
+        Jobs2.Clear();
+        var t = new NarrationTimeRange()
+            {
+                Name = "Status Code",
+                PointColor = "#FF1744",
+                TimeStart = item1.TimeStart,
+                TimeEnd = item2.TimeEnd,
+            };
+        Jobs2.Add(t);
+        await _chart!.RenderAsync();
+        await _chart2!.UpdateSeriesAsync();
+        StateHasChanged();
+    }
+    private void Selected(SelectionData<NarrationTimeRange> selection)
+    {
+        currentSelection = selection;
+
+        var min = selection?.XAxis?.Min;
+        if (min != null)
+        {
+            XMin = DateTimeOffset.FromUnixTimeMilliseconds((long)min);
+        }
+        else
+        {
+            min = null;
+        }
+
+        var max = selection?.XAxis?.Max;
+        if (max != null)
+        {
+            XMax = DateTimeOffset.FromUnixTimeMilliseconds((long)max);
+        }
+        else
+        {
+            max = null;
+        }
+    }
+    class NarrationTimeRange 
+    {
+        public DateTime TimeStart { get; set; }
+        public DateTime TimeEnd { get; set; }
+        public int? Value { get; set; }
+        public string? Name { get; set; }
+        public string? PointColor { get; set; }
+    }
+}
